@@ -47,7 +47,7 @@ struct dhcp_packet {
 
 struct dhcp_options {
 	ne_u8 len[256];
-  ne_u8 val[256][10];
+	ne_u8 val[256][10];
 };
 
 void send_udp_discover(int sockfd, struct sockaddr_in *addr);
@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
 	int markloop2 = 0;
 	
 	struct timeval start,stop,diff;   
-  gettimeofday(&start,0); 
+	gettimeofday(&start,0); 
 	
 	if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) 
 		printf("socket() failed.\n");
@@ -115,8 +115,8 @@ int main(int argc, char *argv[]) {
 	}
 	
 	struct timeval tv_out;
-  tv_out.tv_sec = 2;//等待5秒
-  tv_out.tv_usec = 0;
+	tv_out.tv_sec = 2;//等待5秒
+	tv_out.tv_usec = 0;
 	setsockopt(sock,SOL_SOCKET,SO_RCVTIMEO,&tv_out, sizeof(tv_out));
 	
 	char buffer[1024];
@@ -125,272 +125,271 @@ int main(int argc, char *argv[]) {
 	int markloop = 0;
 	
 	//读文件
-  FILE *fp;   
-  if((fp = fopen("client.conf","r")) == NULL)
-  {   
-      fp = fopen("client.conf","wb");
-  }
-  else {
-  fread(&judge, sizeof(int), 1, fp);   
-  if(judge!=0) {
-	  fread(&lease, sizeof(int), 1, fp);
-	  fread(servaddr, sizeof(ne_u8), 4, fp);
-	  fread(ipaddr, sizeof(ne_u8), 4, fp);
-  }
+	FILE *fp;   
+	if((fp = fopen("client.conf","r")) == NULL)
+	{   
+		fp = fopen("client.conf","wb");
 	}
-  fclose(fp);      
+	else {
+		fread(&judge, sizeof(int), 1, fp);   
+		if(judge!=0) {
+			fread(&lease, sizeof(int), 1, fp);
+			fread(servaddr, sizeof(ne_u8), 4, fp);
+			fread(ipaddr, sizeof(ne_u8), 4, fp);
+		}
+	}
+	fclose(fp);      
 	
 	while(1) {
-	if(strcmp(argv[1],"--default")==0 || strcmp(argv[1],"--interact")==0) {
-	udpServAddr.sin_addr.s_addr = inet_addr("255.255.255.255");
-	send_udp_discover(sock, &udpServAddr);
+		if(strcmp(argv[1],"--default")==0 || strcmp(argv[1],"--interact")==0) {
+			udpServAddr.sin_addr.s_addr = inet_addr("255.255.255.255");
+			send_udp_discover(sock, &udpServAddr);
 	
-  sin_size=sizeof(struct sockaddr_in);  
+			sin_size=sizeof(struct sockaddr_in);  
   
-	while(1) {
-	memset(buffer, 0, 1024);
-	int tmplen = recvfrom(sock, buffer, 1024, 0, (struct sockaddr *)&tmpaddr, &sin_size);
-	dhcp = (struct dhcp_packet *)buffer;
-	ne_u8 *tmp = NULL;
-	tmp = buffer + DHCP_FIXED_NON_OPTION + 6;
-	if(tmplen<0) {
-		markloop = 1;
-		break;
-	}
-	else
-		markloop = 0;
-	if(*tmp !=2)
-		continue;
-	break;
-	}
-	if(markloop) {
-		sleep(10);
-		continue;
-	}
-	memcpy(ipaddr, dhcp->yiaddr, 4);
-	memcpy(&tempa, ipaddr, 4);
-  ipaddrs.s_addr = tempa;
-	readOption(&optionOffer, buffer);
-	memcpy(mask, optionOffer.val[1], 4);
-	memcpy(&tempa, mask, 4);
-  masks.s_addr = tempa;
-	memcpy(gateway, optionOffer.val[3], 4);
-	memcpy(&tempa, gateway, 4);
-  gateways.s_addr = tempa;
-	memcpy(servaddr, optionOffer.val[54], 4);
-	memcpy(&tempa, servaddr, 4);
-  servaddrs.s_addr = tempa;
-	memcpy(&T1, optionOffer.val[58], 4);
-	memcpy(&T2, optionOffer.val[59], 4);
-	memcpy(&lease, optionOffer.val[51], 4);
-	lease = ntohl(lease);
-	
-	send_udp_request(sock, &udpServAddr, servaddr, ipaddr);
-	
-	while(1) {
-	memset(buffer, 0, 1024);
-	recvfrom(sock, buffer, 1024, 0, (struct sockaddr *)&tmpaddr, &sin_size);
-	dhcp = (struct dhcp_packet *)buffer;
-	readOption(&optionAck, buffer);
-	if(*(optionAck.val[53]) != 5 && *(optionAck.val[53]) != 6)
-		continue;
-	int i;
-	for(i=0;i<4;i++) {		
-		if(*((optionAck.val[54])+i) != *(servaddr+i))
-			break;
-	}
-	if(i!=4)
-		continue;
-	break;
-	}
-	
-	if(*(optionAck.val[53]) == 5) {
-		printf("ACK\n");
-		writeLine("discover ACK");
-		setIfAddr("eth1", inet_ntoa(ipaddrs), inet_ntoa(masks), inet_ntoa(gateways));
-    if ((fp=fopen("client.conf","wb"))==NULL)         //打开指定文件，如果文件不存在则新建该文件  
-    {  
-        printf("Open Failed.\n");  
-        return;  
-    }   
-    judge = 1;
-    fwrite(&judge, sizeof(int), 1, fp);
-    fwrite(&lease, sizeof(int), 1, fp);
-	  fwrite(servaddr, sizeof(ne_u8), 4, fp);
-	  fwrite(ipaddr, sizeof(ne_u8), 4, fp);
-    fclose(fp);                            
-    
-	}
-	else {
-		printf("NACK\n");
-		writeLine("discover NAK");
-	}
-	if(strcmp(argv[1],"--default")==0)
-		break;
-	else {
-		gettimeofday(&stop,0);   
-		timeval_subtract(&diff,&start,&stop); 
-		while(lease*0.5>(diff.tv_sec)) {
-			gettimeofday(&stop,0);   
-			timeval_subtract(&diff,&start,&stop); 
-		}
-		printf("T1 expires\n");
-		writeLine("T1 expires");
-		strcpy(argv[1], "--renew");
-		markloop2 = 1;
-		continue;
-	}
-	}
-	else if(strcmp(argv[1],"--renew")==0) {
-		if(argc == 3) {
-			int tempad;
-			tempad = inet_addr(argv[2]);
-			memcpy(ipaddr,&tempad,4);
-		}
-		if(!markloop2)
-			gettimeofday(&start,0);
-		memcpy(&tempa, servaddr, 4);
-  	servaddrs.s_addr = tempa;
-		udpServAddr.sin_addr.s_addr = servaddrs.s_addr;
-		send_udp_renew(sock, &udpServAddr, ipaddr);
-		udpServAddr.sin_addr.s_addr = inet_addr("255.255.255.255");
-		int recvlen;
-		while(1) {
-		memset(buffer, 0, 1024);
-		recvlen = recvfrom(sock, buffer, 1024, 0, (struct sockaddr *)&udpServAddr, &sin_size);
-		gettimeofday(&stop,0);   
-		timeval_subtract(&diff,&start,&stop); 
-		if(recvlen>0) {
-			dhcp = (struct dhcp_packet *)buffer;
-			readOption(&optionAck, buffer);
-			if(*(optionAck.val[53]) != 5 && *(optionAck.val[53]) != 6)
-				continue;
-			int i;
-			for(i=0;i<4;i++) {		
-				if(*((optionAck.val[54])+i) != *(servaddr+i))
-					break;
-			}
-			if(i!=4)
-				continue;
-			break;
-		}
-		if(markloop2) {
-    if((int)(lease*0.875)<(diff.tv_sec)) {
-    	printf("T2 expires\n");
-    	writeLine("T2 expires");
-			break;
-    }
-  	}
-    else {
-    if((int)(lease*0.375)<(diff.tv_sec)) {
-    	printf("T2 expires\n");
-    	writeLine("T2 expires");
-			break;
-    }
-  	}
-		}
-		if(recvlen<0) {
-			send_udp_request(sock, &udpServAddr, servaddr, ipaddr);
-			memset(buffer, 0, 1024);
-			int tmplen1;
-			int mark=0;
 			while(1) {
-			tmplen1 = recvfrom(sock, buffer, 1024, 0, (struct sockaddr *)&tmpaddr, &sin_size);
-			gettimeofday(&stop,0);   
-  		timeval_subtract(&diff,&start,&stop);  
-  		if(tmplen1>0) {
-  			break;
-  			mark = 1;
-  		}
-			if(markloop2) {
-	      if(lease<(diff.tv_sec)) {
-					strcpy(argv[1], "--default");
-					printf("Lease expires\n");
-					writeLine("Lease expires");
+				memset(buffer, 0, 1024);
+				int tmplen = recvfrom(sock, buffer, 1024, 0, (struct sockaddr *)&tmpaddr, &sin_size);
+				dhcp = (struct dhcp_packet *)buffer;
+				ne_u8 *tmp = NULL;
+				tmp = buffer + DHCP_FIXED_NON_OPTION + 6;
+				if(tmplen<0) {
+					markloop = 1;
 					break;
-	      }
-	    }
-      else {
-	      if(lease*0.5<(diff.tv_sec)) {
-					strcpy(argv[1], "--default");
-					printf("Lease expires\n");
-					writeLine("Lease expires");
-					break;
-	      }
-	    }
-			}
-			if(mark) {
+				}
+				else
+					markloop = 0;
+				if(*tmp !=2)
+					continue;
 				break;
 			}
-		}
-		else
-		if(*(optionAck.val[53]) == 6) {
-			writeLine("renew NAK");
-			strcpy(argv[1], "--default");
-		}
-		else {
-			writeLine("renew ACK");
-			if(markloop2) {
-				gettimeofday(&start,0);
-				while(1) {
-				gettimeofday(&stop,0);   
-				timeval_subtract(&diff,&start,&stop); 
-				if(lease*0.5<(diff.tv_sec)) {
-					printf("T1 expires\n");
-					writeLine("T1 expires");
-					break;
-				}
-				}
+			if(markloop) {
+				sleep(10);
 				continue;
+			}
+			memcpy(ipaddr, dhcp->yiaddr, 4);
+			memcpy(&tempa, ipaddr, 4);
+			ipaddrs.s_addr = tempa;
+			readOption(&optionOffer, buffer);
+			memcpy(mask, optionOffer.val[1], 4);
+			memcpy(&tempa, mask, 4);
+			masks.s_addr = tempa;
+			memcpy(gateway, optionOffer.val[3], 4);
+			memcpy(&tempa, gateway, 4);
+			gateways.s_addr = tempa;
+			memcpy(servaddr, optionOffer.val[54], 4);
+			memcpy(&tempa, servaddr, 4);
+			servaddrs.s_addr = tempa;
+			memcpy(&T1, optionOffer.val[58], 4);
+			memcpy(&T2, optionOffer.val[59], 4);
+			memcpy(&lease, optionOffer.val[51], 4);
+			lease = ntohl(lease);
+	
+			send_udp_request(sock, &udpServAddr, servaddr, ipaddr);
+	
+			while(1) {
+				memset(buffer, 0, 1024);
+				recvfrom(sock, buffer, 1024, 0, (struct sockaddr *)&tmpaddr, &sin_size);
+				dhcp = (struct dhcp_packet *)buffer;
+				readOption(&optionAck, buffer);
+				if(*(optionAck.val[53]) != 5 && *(optionAck.val[53]) != 6)
+					continue;
+				int i;
+				for(i=0;i<4;i++) {		
+					if(*((optionAck.val[54])+i) != *(servaddr+i))
+						break;
+				}
+				if(i!=4)
+					continue;
+				break;
+			}
+	
+			if(*(optionAck.val[53]) == 5) {
+				printf("ACK\n");
+				writeLine("discover ACK");
+				setIfAddr("eth1", inet_ntoa(ipaddrs), inet_ntoa(masks), inet_ntoa(gateways));
+				if ((fp=fopen("client.conf","wb"))==NULL)         //打开指定文件，如果文件不存在则新建该文件  
+				{  
+					printf("Open Failed.\n");  
+					return;  
+				}   
+				judge = 1;
+				fwrite(&judge, sizeof(int), 1, fp);
+				fwrite(&lease, sizeof(int), 1, fp);
+				fwrite(servaddr, sizeof(ne_u8), 4, fp);
+				fwrite(ipaddr, sizeof(ne_u8), 4, fp);
+				fclose(fp);
 			}
 			else {
+				printf("NACK\n");
+				writeLine("discover NAK");
+			}
+			if(strcmp(argv[1],"--default")==0)
 				break;
+			else {
+				gettimeofday(&stop,0);   
+				timeval_subtract(&diff,&start,&stop); 
+				while(lease*0.5>(diff.tv_sec)) {
+					gettimeofday(&stop,0);   
+					timeval_subtract(&diff,&start,&stop); 
+				}
+				printf("T1 expires\n");
+				writeLine("T1 expires");
+				strcpy(argv[1], "--renew");
+				markloop2 = 1;
+				continue;
 			}
 		}
-	}
-	else if(strcmp(argv[1],"--inform")==0) {
+		else if(strcmp(argv[1],"--renew")==0) {
+			if(argc == 3) {
+				int tempad;
+				tempad = inet_addr(argv[2]);
+				memcpy(ipaddr,&tempad,4);
+			}
+			if(!markloop2)
+				gettimeofday(&start,0);
+			memcpy(&tempa, servaddr, 4);
+  			servaddrs.s_addr = tempa;
+			udpServAddr.sin_addr.s_addr = servaddrs.s_addr;
+			send_udp_renew(sock, &udpServAddr, ipaddr);
+			udpServAddr.sin_addr.s_addr = inet_addr("255.255.255.255");
+			int recvlen;
+			while(1) {
+				memset(buffer, 0, 1024);
+				recvlen = recvfrom(sock, buffer, 1024, 0, (struct sockaddr *)&udpServAddr, &sin_size);
+				gettimeofday(&stop,0);   
+				timeval_subtract(&diff,&start,&stop); 
+				if(recvlen>0) {
+					dhcp = (struct dhcp_packet *)buffer;
+					readOption(&optionAck, buffer);
+					if(*(optionAck.val[53]) != 5 && *(optionAck.val[53]) != 6)
+						continue;
+					int i;
+					for(i=0;i<4;i++) {		
+						if(*((optionAck.val[54])+i) != *(servaddr+i))
+							break;
+					}
+					if(i!=4)
+						continue;
+					break;
+				}
+				if(markloop2) {
+					if((int)(lease*0.875)<(diff.tv_sec)) {
+    					printf("T2 expires\n");
+    					writeLine("T2 expires");
+						break;
+					}
+  				}
+				else {
+					if((int)(lease*0.375)<(diff.tv_sec)) {
+    					printf("T2 expires\n");
+    					writeLine("T2 expires");
+						break;
+					}
+  				}
+			}
+			if(recvlen<0) {
+				send_udp_request(sock, &udpServAddr, servaddr, ipaddr);
+				memset(buffer, 0, 1024);
+				int tmplen1;
+				int mark=0;
+				while(1) {
+					tmplen1 = recvfrom(sock, buffer, 1024, 0, (struct sockaddr *)&tmpaddr, &sin_size);
+					gettimeofday(&stop,0);   
+  					timeval_subtract(&diff,&start,&stop);  
+  					if(tmplen1>0) {
+  						break;
+  						mark = 1;
+  					}
+					if(markloop2) {
+					if(lease<(diff.tv_sec)) {
+						strcpy(argv[1], "--default");
+						printf("Lease expires\n");
+						writeLine("Lease expires");
+						break;
+					}
+					}
+					else {
+						if(lease*0.5<(diff.tv_sec)) {
+							strcpy(argv[1], "--default");
+							printf("Lease expires\n");
+							writeLine("Lease expires");
+							break;
+					  }
+					}
+				}
+				if(mark) {
+					break;
+				}
+			}
+			else {
+				if(*(optionAck.val[53]) == 6) {
+					writeLine("renew NAK");
+					strcpy(argv[1], "--default");
+				}
+				else {
+					writeLine("renew ACK");
+					if(markloop2) {
+						gettimeofday(&start,0);
+						while(1) {
+						gettimeofday(&stop,0);   
+						timeval_subtract(&diff,&start,&stop); 
+						if(lease*0.5<(diff.tv_sec)) {
+							printf("T1 expires\n");
+							writeLine("T1 expires");
+							break;
+						}
+						}
+						continue;
+					}
+					else {
+						break;
+					}
+				}
+			}
+		}
+		else if(strcmp(argv[1],"--inform")==0) {
+			memcpy(&tempa, servaddr, 4);
+  			servaddrs.s_addr = tempa;
+			udpServAddr.sin_addr.s_addr = servaddrs.s_addr;
+  			memcpy(&tempa, ipaddr, 4);
 		
-		memcpy(&tempa, servaddr, 4);
-  	servaddrs.s_addr = tempa;
-		udpServAddr.sin_addr.s_addr = servaddrs.s_addr;
-  	memcpy(&tempa, ipaddr, 4);
+			send_udp_inform(sock, &udpServAddr, ipaddr);
+			memset(buffer, 0, 1024);
+			recvfrom(sock, buffer, 1024, 0, (struct sockaddr *)&udpServAddr, &sin_size);
+			dhcp = (struct dhcp_packet *)buffer;
+			readOption(&optionInform, buffer);
+			writeLine("inform ACK");
+			break;
+		}
+		else if(strcmp(argv[1],"--release")==0) {
 		
-		send_udp_inform(sock, &udpServAddr, ipaddr);
-		memset(buffer, 0, 1024);
-		recvfrom(sock, buffer, 1024, 0, (struct sockaddr *)&udpServAddr, &sin_size);
-		dhcp = (struct dhcp_packet *)buffer;
-		readOption(&optionInform, buffer);
-		writeLine("inform ACK");
-		break;
-	}
-	else if(strcmp(argv[1],"--release")==0) {
+			memcpy(&tempa, servaddr, 4);
+  			servaddrs.s_addr = tempa;
+			udpServAddr.sin_addr.s_addr = servaddrs.s_addr;
 		
-		memcpy(&tempa, servaddr, 4);
-  	servaddrs.s_addr = tempa;
-		udpServAddr.sin_addr.s_addr = servaddrs.s_addr;
+			send_udp_release(sock, &udpServAddr, servaddr, ipaddr);
+			writeLine("release");
+			sleep(3);
+			setIfAddr("eth1", "0.0.0.0", "0.0.0.0", "0.0.0.0");
 		
-		send_udp_release(sock, &udpServAddr, servaddr, ipaddr);
-		writeLine("release");
-		sleep(3);
-		setIfAddr("eth1", "0.0.0.0", "0.0.0.0", "0.0.0.0");
+			FILE *fp1;                                  
+			if ((fp1=fopen("client.conf","wb"))==NULL)       
+			{  
+				printf("Open Failed.\n");  
+				return;  
+			}   
+			judge = 0;
+			fread(&judge, sizeof(int), 1, fp);
+			fclose(fp1);                             
 		
-		FILE *fp1;                                  
-    if ((fp1=fopen("client.conf","wb"))==NULL)       
-    {  
-        printf("Open Failed.\n");  
-        return;  
-    }   
-    judge = 0;
-    fread(&judge, sizeof(int), 1, fp);
-    fclose(fp1);                             
-		
-		break;
-	}
-	else {
-		printf("wrong use!\n");
-		exit(0);
-	}
-//	sleep(5);
+			break;
+		}
+		else {
+			printf("wrong use!\n");
+			exit(0);
+		}
+	//	sleep(5);
 	}
 }
 
@@ -433,44 +432,43 @@ void send_udp_discover(int sockfd, struct sockaddr_in *addr)
 	
 
 	op_num = 4;
-  op[op_num++] = 53;
-  op[op_num++] = 1;
-  op[op_num++] = 1;
+	op[op_num++] = 53;
+	op[op_num++] = 1;
+	op[op_num++] = 1;
   
-  op[op_num++] = 60;
-  op[op_num++] = 10;
-  memcpy((op + op_num), cli_id, 10);
-  op_num += 10;
+	op[op_num++] = 60;
+	op[op_num++] = 10;
+	memcpy((op + op_num), cli_id, 10);
+	op_num += 10;
 
-  op[op_num++] = 12;
-  op[op_num++] = strlen(hostname);
-  memcpy((op + op_num), hostname, strlen(hostname));
-  op_num += strlen(hostname);
+	op[op_num++] = 12;
+	op[op_num++] = strlen(hostname);
+	memcpy((op + op_num), hostname, strlen(hostname));
+	op_num += strlen(hostname);
 
-  op[op_num++] = 55;//Parameter request list
-  op[op_num++] = 7;
-  op[op_num++] = 1;
-  op[op_num++] = 3;
-  op[op_num++] = 6;
-  op[op_num++] = 51;
+	op[op_num++] = 55;//Parameter request list
+	op[op_num++] = 7;
+	op[op_num++] = 1;
+	op[op_num++] = 3;
+	op[op_num++] = 6;
+	op[op_num++] = 51;
 	op[op_num++] = 54;
 	op[op_num++] = 58;
 	op[op_num++] = 59;
 
 	op[op_num++] = 0xff;
 
-  if(op_num < 64) {
-      for(i = op_num; i < 64; ++i) {
-          op[i] = 0;
-      }
-      op_num = 64;
-  }
+	if(op_num < 64) {
+		for(i = op_num; i < 64; ++i) {
+			op[i] = 0;
+		}
+		op_num = 64;
+	}
 
 	sendto(sockfd, buffer, 300, 0, (struct sockaddr *)addr, sizeof(struct sockaddr));
 }
 
-void send_udp_request(int sockfd, struct sockaddr_in *addr, 
-	char *servaddr, char *ipaddr)
+void send_udp_request(int sockfd, struct sockaddr_in *addr, char *servaddr, char *ipaddr)
 {
 	char buffer[1024];
 	memset(buffer, 0, 1024);
@@ -509,48 +507,48 @@ void send_udp_request(int sockfd, struct sockaddr_in *addr,
 	
 
 	op_num = 4;
-  op[op_num++] = 53;
-  op[op_num++] = 1;
-  op[op_num++] = 3;
+	op[op_num++] = 53;
+	op[op_num++] = 1;
+	op[op_num++] = 3;
   
-  op[op_num++] = 50;
-  op[op_num++] = 4;
-  memcpy((op + op_num), ipaddr, 4);
-  op_num += 4;
+	op[op_num++] = 50;
+	op[op_num++] = 4;
+	memcpy((op + op_num), ipaddr, 4);
+	op_num += 4;
   
-  op[op_num++] = 54;
-  op[op_num++] = 4;
-  memcpy((op + op_num), servaddr, 4);
-  op_num += 4;
+	op[op_num++] = 54;
+	op[op_num++] = 4;
+	memcpy((op + op_num), servaddr, 4);
+	op_num += 4;
   
-  op[op_num++] = 60;
-  op[op_num++] = 10;
-  memcpy((op + op_num), cli_id, 10);
-  op_num += 10;
+	op[op_num++] = 60;
+	op[op_num++] = 10;
+	memcpy((op + op_num), cli_id, 10);
+	op_num += 10;
 
-  op[op_num++] = 12;
-  op[op_num++] = strlen(hostname);
-  memcpy((op + op_num), hostname, strlen(hostname));
-  op_num += strlen(hostname);
+	op[op_num++] = 12;
+	op[op_num++] = strlen(hostname);
+	memcpy((op + op_num), hostname, strlen(hostname));
+	op_num += strlen(hostname);
 
-  op[op_num++] = 55;//Parameter request list
-  op[op_num++] = 7;
-  op[op_num++] = 1;
-  op[op_num++] = 3;
-  op[op_num++] = 6;
-  op[op_num++] = 51;
+	op[op_num++] = 55;//Parameter request list
+	op[op_num++] = 7;
+	op[op_num++] = 1;
+	op[op_num++] = 3;
+	op[op_num++] = 6;
+	op[op_num++] = 51;
 	op[op_num++] = 54;
 	op[op_num++] = 58;
 	op[op_num++] = 59;
 
 	op[op_num++] = 0xff;
 
-  if(op_num < 64) {
-      for(i = op_num; i < 64; ++i) {
-          op[i] = 0;
-      }
-      op_num = 64;
-  }
+	if(op_num < 64) {
+		for(i = op_num; i < 64; ++i) {
+			op[i] = 0;
+		}
+		op_num = 64;
+	}
 
 	sendto(sockfd, buffer, 300, 0, (struct sockaddr *)addr, sizeof(struct sockaddr));
 }
@@ -594,28 +592,28 @@ void send_udp_release(int sockfd, struct sockaddr_in *addr, char *servaddr, char
 	
 
 	op_num = 4;
-  op[op_num++] = 53;
-  op[op_num++] = 1;
-  op[op_num++] = 7;
+	op[op_num++] = 53;
+	op[op_num++] = 1;
+	op[op_num++] = 7;
   
-  op[op_num++] = 54;
-  op[op_num++] = 4;
-  memcpy((op + op_num), servaddr, 4);
-  op_num += 4;
+	op[op_num++] = 54;
+	op[op_num++] = 4;
+	memcpy((op + op_num), servaddr, 4);
+	op_num += 4;
   
-  op[op_num++] = 12;
-  op[op_num++] = strlen(hostname);
-  memcpy((op + op_num), hostname, strlen(hostname));
-  op_num += strlen(hostname);
+	op[op_num++] = 12;
+	op[op_num++] = strlen(hostname);
+	memcpy((op + op_num), hostname, strlen(hostname));
+	op_num += strlen(hostname);
 
 	op[op_num++] = 0xff;
 
-  if(op_num < 64) {
-      for(i = op_num; i < 64; ++i) {
-          op[i] = 0;
-      }
-      op_num = 64;
-  }
+	if(op_num < 64) {
+		for(i = op_num; i < 64; ++i) {
+			op[i] = 0;
+		}
+		op_num = 64;
+	}
 
 	sendto(sockfd, buffer, 300, 0, (struct sockaddr *)addr, sizeof(struct sockaddr));
 }
@@ -659,33 +657,33 @@ void send_udp_inform(int sockfd, struct sockaddr_in *addr, char *ipaddr) {
 	
 
 	op_num = 4;
-  op[op_num++] = 53;
-  op[op_num++] = 1;
-  op[op_num++] = 8;
+	op[op_num++] = 53;
+	op[op_num++] = 1;
+	op[op_num++] = 8;
   
-  op[op_num++] = 12;
-  op[op_num++] = strlen(hostname);
-  memcpy((op + op_num), hostname, strlen(hostname));
-  op_num += strlen(hostname);
+	op[op_num++] = 12;
+	op[op_num++] = strlen(hostname);
+	memcpy((op + op_num), hostname, strlen(hostname));
+	op_num += strlen(hostname);
   
-  op[op_num++] = 55;//Parameter request list
-  op[op_num++] = 7;
-  op[op_num++] = 1;
-  op[op_num++] = 3;
-  op[op_num++] = 6;
-  op[op_num++] = 51;
+	op[op_num++] = 55;//Parameter request list
+	op[op_num++] = 7;
+	op[op_num++] = 1;
+	op[op_num++] = 3;
+	op[op_num++] = 6;
+	op[op_num++] = 51;
 	op[op_num++] = 54;
 	op[op_num++] = 58;
 	op[op_num++] = 59;
 
 	op[op_num++] = 0xff;
 
-  if(op_num < 64) {
-      for(i = op_num; i < 64; ++i) {
-          op[i] = 0;
-      }
-      op_num = 64;
-  }
+	if(op_num < 64) {
+		for(i = op_num; i < 64; ++i) {
+			op[i] = 0;
+		}
+		op_num = 64;
+	}
 
 	sendto(sockfd, buffer, 300, 0, (struct sockaddr *)addr, sizeof(struct sockaddr));
 }
@@ -729,38 +727,38 @@ void send_udp_renew(int sockfd, struct sockaddr_in *addr, char *ipaddr) {
 	
 
 	op_num = 4;
-  op[op_num++] = 53;
-  op[op_num++] = 1;
-  op[op_num++] = 3;
+	op[op_num++] = 53;
+	op[op_num++] = 1;
+	op[op_num++] = 3;
   
-  op[op_num++] = 60;
-  op[op_num++] = 10;
-  memcpy((op + op_num), cli_id, 10);
-  op_num += 10;
+	op[op_num++] = 60;
+	op[op_num++] = 10;
+	memcpy((op + op_num), cli_id, 10);
+	op_num += 10;
 
-  op[op_num++] = 12;
-  op[op_num++] = strlen(hostname);
-  memcpy((op + op_num), hostname, strlen(hostname));
-  op_num += strlen(hostname);
+	op[op_num++] = 12;
+	op[op_num++] = strlen(hostname);
+	memcpy((op + op_num), hostname, strlen(hostname));
+	op_num += strlen(hostname);
 
-  op[op_num++] = 55;//Parameter request list
-  op[op_num++] = 7;
-  op[op_num++] = 1;
-  op[op_num++] = 3;
-  op[op_num++] = 6;
-  op[op_num++] = 51;
+	op[op_num++] = 55;//Parameter request list
+	op[op_num++] = 7;
+	op[op_num++] = 1;
+	op[op_num++] = 3;
+	op[op_num++] = 6;
+	op[op_num++] = 51;
 	op[op_num++] = 54;
 	op[op_num++] = 58;
 	op[op_num++] = 59;
 
 	op[op_num++] = 0xff;
 
-  if(op_num < 64) {
-      for(i = op_num; i < 64; ++i) {
-          op[i] = 0;
-      }
-      op_num = 64;
-  }
+	if(op_num < 64) {
+		for(i = op_num; i < 64; ++i) {
+			op[i] = 0;
+		}
+		op_num = 64;
+	}
 
 	sendto(sockfd, buffer, 300, 0, (struct sockaddr *)addr, sizeof(struct sockaddr));
 }
